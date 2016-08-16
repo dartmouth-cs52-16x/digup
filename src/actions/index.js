@@ -11,19 +11,27 @@ export const ActionTypes = {
   AUTH_USER: 'AUTH_USER',
   DEAUTH_USER: 'DEAUTH_USER',
   AUTH_ERROR: 'AUTH_ERROR',
+  FETCH_USER: 'FETCH_USER',
+  ERROR_MESSAGE: 'ERROR_MESSAGE',
 };
 
 const ROOT_URL = 'https://digup.herokuapp.com/api';
-// const ROOT_URL = 'http://hw5-weijia.herokuapp.com/api';
 // const ROOT_URL = 'http://localhost:9090';
 const API_KEY = '?key=weijia_tang';
+
+export function errorMessage(error) {
+  return (dispatch) => {
+    dispatch({ type: ActionTypes.ERROR_MESSAGE, message: error });
+    browserHistory.push('/error');
+  };
+}
 
 export function fetchPosts() {
   return (dispatch) => {
     axios.get(`${ROOT_URL}/posts${API_KEY}`).then(response => {
       dispatch({ type: ActionTypes.FETCH_POSTS, posts: response.data });
     }).catch(error => {
-      console.log(`Error fetching all posts: ${error}`);
+      dispatch(errorMessage(`Error fetching all posts: ${error.response.data}`));
     });
   };
 }
@@ -31,11 +39,12 @@ export function fetchPosts() {
 export function createPost(post) {
   return (dispatch) => {
     const fields = { title: post.title, content: post.content, tags: post.tags };
-    axios.post(`${ROOT_URL}/posts${API_KEY}`, fields).then(response => {
+    axios.post(`${ROOT_URL}/posts${API_KEY}`, fields, { headers: { authorization: localStorage.getItem('token') } })
+    .then(response => {
       dispatch({ type: ActionTypes.CREATE_POST, payload: { fields } });
       browserHistory.push('/');
     }).catch(error => {
-      console.log('Error creating post');
+      dispatch(errorMessage(`Error creating post: ${error.response.data}`));
     });
   };
 }
@@ -43,10 +52,11 @@ export function createPost(post) {
 export function updatePost(post, id) {
   return (dispatch) => {
     const fields = { title: post.title, content: post.content, tags: post.tags };
-    axios.put(`${ROOT_URL}/posts/${id}${API_KEY}`, fields).then(response => {
+    axios.put(`${ROOT_URL}/posts/${id}${API_KEY}`, fields, { headers: { authorization: localStorage.getItem('token') } })
+    .then(response => {
       dispatch({ type: ActionTypes.UPDATE_POST, fields, id });
     }).catch(error => {
-      console.log('Error updating post');
+      dispatch(errorMessage(`Error updating post: ${error.response.data}`));
     });
   };
 }
@@ -56,18 +66,19 @@ export function fetchPost(id) {
     axios.get(`${ROOT_URL}/posts/${id}${API_KEY}`).then(response => {
       dispatch({ type: ActionTypes.FETCH_POST, post: response.data });
     }).catch(error => {
-      console.log('Error fetching post');
+      dispatch(errorMessage(`Error fetching post: ${error.response.data}`));
     });
   };
 }
 
 export function deletePost(id) {
   return (dispatch) => {
-    axios.delete(`${ROOT_URL}/posts/${id}${API_KEY}`).then(response => {
+    axios.delete(`${ROOT_URL}/posts/${id}`, { headers: { authorization: localStorage.getItem('token') } })
+    .then(response => {
       dispatch({ type: ActionTypes.DELETE_POST, payload: null });
       browserHistory.push('/');
     }).catch(error => {
-      console.log('Error deleting post');
+      dispatch(errorMessage(`Error deleting post: ${error.response.data}`));
     });
   };
 }
@@ -86,9 +97,9 @@ export function signoutUser() {
 // trigger to deauth if there is error
 // can also use in your error reducer if you have one to display an error message
 export function authError(error) {
-  return {
-    type: ActionTypes.AUTH_ERROR,
-    message: error,
+  return (dispatch) => {
+    dispatch({ type: ActionTypes.AUTH_ERROR });
+    dispatch(errorMessage(error));
   };
 }
 
@@ -112,7 +123,7 @@ export function signinUser({ email, password }) {
 }
 
 
-export function signupUser({ email, password }) {
+export function signupUser({ email, password, username }) {
   // takes in an object with email and password (minimal user object)
   // returns a thunk method that takes dispatch as an argument (just like our create post method really)
   // does an axios.post on the /signup endpoint (only difference from above)
@@ -121,12 +132,24 @@ export function signupUser({ email, password }) {
   //  localStorage.setItem('token', response.data.token);
   // on error should dispatch(authError(`Sign Up Failed: ${error.response.data}`));
   return (dispatch) => {
-    axios.post(`${ROOT_URL}/signup`, { email, password }).then(response => {
+    axios.post(`${ROOT_URL}/signup`, { email, password, username }).then(response => {
       dispatch({ type: ActionTypes.AUTH_USER });
       localStorage.setItem('token', response.data.token);
       browserHistory.push('/');
     }).catch(error => {
-      dispatch(authError(`Sign In Failed: ${error.response.data}`));
+      dispatch(authError(`Sign Up Failed: ${error.response.data}`));
+    });
+  };
+}
+
+export function fetchUser() {
+  return (dispatch) => {
+    axios.get(`${ROOT_URL}/profile`, { headers: { authorization: localStorage.getItem('token') } }).then(response => {
+      dispatch({ type: ActionTypes.FETCH_USER, payload: {
+        user: response.data,
+      } });
+    }).catch(error => {
+      dispatch(errorMessage(`Cannot get user data: ${error.response.data}`));
     });
   };
 }
